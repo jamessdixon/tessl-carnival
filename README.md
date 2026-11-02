@@ -1,5 +1,14 @@
 # Tessl Carnival
 
+This fork displays the scenery and games in black and white, with gameplay unchanged.
+The midway's visitors and vendors are cartoon zombies with outstretched arms,
+ragged clothes and undead faces. Your player is a full-color human with a shotgun.
+Click a zombie (including cart vendors) to shoot it, with a muzzle flash and a
+large red cartoon splatter that fades away. Hovering shows a crosshair;
+empty-ground clicks still move you. Shots have a short cooldown. Zombies stay
+gone until you leave the midway; returning starts a fresh crowd. Reduced-motion
+mode uses static splatters without flashes.
+
 [![AI DevCon NYC, 2 to 4 November 2026](https://img.shields.io/badge/AI%20DevCon%20NYC-2--4%20Nov%202026-e63946)](https://tessl.io/devcon?utm_source=github&utm_medium=readme&utm_campaign=tessl-carnival)
 [![Play the carnival](https://img.shields.io/badge/Play-the%20carnival-ffcc33)](https://tesslio.github.io/tessl-carnival/)
 [![Built with Tessl](https://img.shields.io/badge/Built%20with-Tessl-1b1035)](https://tessl.io/?utm_source=github&utm_medium=readme&utm_campaign=tessl-carnival)

@@ -1,5 +1,14 @@
 import { palette } from './palette';
 import {
+  advanceSplatter,
+  createSplatter,
+  MAX_SPLATTER,
+  SHOT_COOLDOWN,
+  zombieAt,
+  type Splatter,
+  type ZombieTarget,
+} from './combat';
+import {
   archBounds,
   BOOTH_SIGN_HEIGHT,
   boothBounds,
@@ -12,6 +21,8 @@ import {
   drawField,
   drawGroundLayer,
   drawProp,
+  drawShot,
+  drawSplatter,
   drawWalker,
   groundBounds,
   HORIZON,
@@ -99,6 +110,21 @@ export function startMidway(canvas: HTMLCanvasElement, options: MidwayOptions): 
   ];
   const strolls = strollTiles(map);
   const visitors = createVisitors(map, 9, Math.random);
+  const deadZombies = new Set<string>();
+  const vendorIds = new Map(
+    map.props.filter((prop) => prop.kind === 'cart').map((prop, i) => [prop, `vendor-${i}`]),
+  );
+  const targets = (): ZombieTarget[] =>
+    [
+      ...visitors.map((visitor, i) => ({ ...toScreen(visitor.x, visitor.y), id: `visitor-${i}` })),
+      ...Array.from(vendorIds, ([prop, id]) => ({
+        ...toScreen(prop.x + 0.5, prop.y + 0.12),
+        id,
+      })),
+    ].filter((target) => !deadZombies.has(target.id));
+  let splatter: Splatter[] = [];
+  let cooldown = 0;
+  let shot: { from: Point; to: Point; remaining: number } | undefined;
   const clouds: Cloud[] = Array.from({ length: 9 }, (_, i) => ({
     x: i / 9 + Math.random() * 0.08,
     y: Math.random(),
@@ -192,7 +218,32 @@ export function startMidway(canvas: HTMLCanvasElement, options: MidwayOptions): 
   };
 
   const onPointerDown = (event: PointerEvent) => {
+    if (event.button !== 0) return;
     const point = toWorld(event);
+    const zombie = zombieAt(point, targets());
+    if (zombie) {
+      if (cooldown > 0) return;
+      deadZombies.add(zombie.id);
+      cooldown = SHOT_COOLDOWN;
+      player.path = [];
+      player.walking = false;
+      destination = undefined;
+      const feet = toScreen(player.x, player.y);
+      player.flipped = point.x < feet.x;
+      const from = { x: feet.x + (player.flipped ? -20 : 20), y: feet.y - 13 };
+      shot = calm ? undefined : { from, to: { x: zombie.x, y: zombie.y - 14 }, remaining: 0.12 };
+      const burst = createSplatter(zombie, Math.random);
+      if (calm) {
+        for (const particle of burst) {
+          particle.x += particle.vx * 0.25;
+          particle.y = particle.floor;
+          particle.vx = 0;
+          particle.vy = 0;
+        }
+      }
+      splatter = [...splatter, ...burst].slice(-MAX_SPLATTER);
+      return;
+    }
     const booth = boothAt(point);
     if (!booth && billboardAt(point)) {
       window.open(DEVCON_URL, '_blank', 'noopener');
@@ -211,7 +262,11 @@ export function startMidway(canvas: HTMLCanvasElement, options: MidwayOptions): 
   };
   const onPointerMove = (event: PointerEvent) => {
     const point = toWorld(event);
-    canvas.style.cursor = boothAt(point) || billboardAt(point) ? 'pointer' : 'default';
+    canvas.style.cursor = zombieAt(point, targets())
+      ? 'crosshair'
+      : boothAt(point) || billboardAt(point)
+        ? 'pointer'
+        : 'default';
   };
 
   window.addEventListener('keydown', onKeyDown);
@@ -261,6 +316,7 @@ export function startMidway(canvas: HTMLCanvasElement, options: MidwayOptions): 
   };
 
   const draw = (t: number) => {
+    ctx.filter = 'grayscale(1)';
     // The sky, and clouds drifting slowly behind the midway.
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     const horizon = (HORIZON - camera.y) * zoom;
@@ -344,16 +400,22 @@ export function startMidway(canvas: HTMLCanvasElement, options: MidwayOptions): 
       box.top < visible.bottom;
     const walkerBox = (w: Point): Box => {
       const p = toScreen(w.x, w.y);
-      return { left: p.x - 10, right: p.x + 10, top: p.y - 40, bottom: p.y + 4 };
+      return { left: p.x - 24, right: p.x + 24, top: p.y - 40, bottom: p.y + 4 };
     };
 
     type Drawable = { depth: number; box: Box; draw: () => void };
     const drawables: Drawable[] = [
-      ...visitors.map((v) => ({
-        depth: v.x + v.y,
-        box: walkerBox(v),
-        draw: () => drawWalker(ctx, v, visitorLook(v.look)),
-      })),
+      ...visitors.flatMap((v, i) =>
+        deadZombies.has(`visitor-${i}`)
+          ? []
+          : [
+              {
+                depth: v.x + v.y,
+                box: walkerBox(v),
+                draw: () => drawWalker(ctx, v, visitorLook(v.look)),
+              },
+            ],
+      ),
       {
         depth: playerDepth,
         box: walkerBox(player),
@@ -365,7 +427,7 @@ export function startMidway(canvas: HTMLCanvasElement, options: MidwayOptions): 
       const { depth, box, booth, prop, name } = item;
       const paint = booth
         ? () => drawBooth(ctx, booth, name, t, booth === inReach)
-        : () => drawProp(ctx, prop!, t);
+        : () => drawProp(ctx, prop!, t, !deadZombies.has(vendorIds.get(prop!) ?? ''));
       drawables.push({ depth, box, draw: () => faded(box, depth, paint) });
     }
     drawables
@@ -377,6 +439,8 @@ export function startMidway(canvas: HTMLCanvasElement, options: MidwayOptions): 
     if (onScreen(archBounds(map))) faded(archBounds(map), Infinity, () => drawArch(ctx, map, t));
     drawBunting(ctx, map, t, visible);
     drawFloaters(ctx, floaters);
+    drawSplatter(ctx, splatter);
+    if (shot) drawShot(ctx, shot.from, shot.to, shot.remaining / 0.12);
 
     // The prompt over the booth in reach, at full resolution.
     if (inReach?.gameId) {
@@ -420,7 +484,15 @@ export function startMidway(canvas: HTMLCanvasElement, options: MidwayOptions): 
     else if (player.path.length > 0) followPath(player, dt);
     else player.walking = false;
 
-    for (const visitor of visitors) updateVisitor(map, visitor, dt, Math.random, strolls);
+    visitors.forEach((visitor, i) => {
+      if (!deadZombies.has(`visitor-${i}`)) updateVisitor(map, visitor, dt, Math.random, strolls);
+    });
+    cooldown = Math.max(0, cooldown - dt);
+    splatter = advanceSplatter(splatter, dt);
+    if (shot) {
+      shot.remaining -= dt;
+      if (shot.remaining <= 0) shot = undefined;
+    }
 
     const reach = boothInReach(map, player);
     if (reach !== inReach) {

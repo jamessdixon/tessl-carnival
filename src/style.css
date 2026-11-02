@@ -1,5 +1,14 @@
 /* Colours and fonts come from src/carnival/theme.ts via applyTheme(). */
 
+.awning,
+.midway-help,
+.midway-guide,
+.midway-credit,
+.booth-card,
+.game {
+  filter: grayscale(1);
+}
+
 * {
   box-sizing: border-box;
 }
@@ -7,8 +16,8 @@
 body {
   margin: 0;
   min-height: 100vh;
-  background: var(--color-background);
-  color: var(--color-text);
+  background: #141414;
+  color: #f9f9f9;
   font-family: var(--font-family);
 }
 

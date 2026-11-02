@@ -47,8 +47,11 @@ export const palette = {
   closed: '#a99cc4',
   closedShade: '#8a7daa',
   white: '#ffffff',
+  humanSkin: '#f1c27d',
+  blood: '#721c24',
+  bloodLight: '#b63a42',
 
-  skins: ['#f1c27d', '#c68642', '#8d5524', '#e0ac69', '#ffdbac'],
+  skins: ['#b8b8b8', '#929292', '#737373', '#a6a6a6', '#cecece'],
   hairs: ['#3b2219', '#1b1035', '#a55728', '#e6c35c', '#6b4429'],
   shirts: [colors.water, '#7bd389', '#b48ee0', colors.danger, '#2b8ccc', colors.stripeB],
   pants: ['#2d3a6b', '#3b2a4f', '#5a4a3a'],

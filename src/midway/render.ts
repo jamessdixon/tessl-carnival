@@ -1,6 +1,7 @@
 import { canvasFont, theme } from '../carnival';
 import bannerUrl from './aidevcon-banner.png';
 import { palette } from './palette';
+import type { Splatter } from './combat';
 import {
   CART_KINDS,
   toScreen,
@@ -795,6 +796,7 @@ function person(
 ) {
   const swing = options.swing ?? 0;
   const dir = options.dir ?? 1;
+  const human = options.player === true;
   oval(ctx, x, y, 5, 2, palette.shadow);
   if (options.player) {
     ctx.strokeStyle = palette.gold;
@@ -821,15 +823,31 @@ function person(
     look.pants,
     2.6,
   );
-  ctx.fillStyle = look.shirt;
-  ctx.beginPath();
-  ctx.roundRect(x - 4, y - 16.5, 8, 9.5, 3);
-  ctx.fill();
+  if (human) {
+    ctx.fillStyle = look.shirt;
+    ctx.beginPath();
+    ctx.roundRect(x - 4, y - 16.5, 8, 9.5, 3);
+    ctx.fill();
+  } else
+    poly(
+      ctx,
+      [
+        [x - 3, y - 17],
+        [x + 3, y - 17],
+        [x + 4, y - 7],
+        [x + 1.5, y - 9],
+        [x, y - 6.5],
+        [x - 2, y - 9],
+        [x - 4, y - 7],
+      ],
+      look.shirt,
+    );
   stroke(
     ctx,
     [
       [x - 4, y - 15],
-      [x - 5 - swing, y - 9],
+      [x - 4 + dir * (human ? 3 : 6), y - (human ? 11 : 17) + swing * 0.5],
+      [x - 4 + dir * (human ? 7 : 10), y - (human ? 12 : 16) + swing * 0.5],
     ],
     look.skin,
     2,
@@ -838,20 +856,49 @@ function person(
     ctx,
     [
       [x + 4, y - 15],
-      [x + 5 + swing, y - 9],
+      [x + 4 + dir * (human ? 3 : 6), y - (human ? 11 : 17) - swing * 0.5],
+      [x + 4 + dir * (human ? 7 : 10), y - (human ? 12 : 16) - swing * 0.5],
     ],
     look.skin,
     2,
   );
+  ctx.save();
+  if (!human) ctx.translate(dir * 1.5, 1 + Math.abs(swing) * 0.5);
   oval(ctx, x, y - 20.5, 4, 4, look.skin);
   ctx.fillStyle = look.hair;
   ctx.beginPath();
-  if (options.back) ctx.arc(x, y - 20.8, 4.2, 0, Math.PI * 2);
-  else ctx.arc(x, y - 21, 4.2, Math.PI * 1.05, Math.PI * 1.95);
+  if (human) {
+    if (options.back) ctx.arc(x, y - 20.8, 4.2, 0, Math.PI * 2);
+    else ctx.arc(x, y - 21, 4.2, Math.PI * 1.05, Math.PI * 1.95);
+  } else if (options.back) ctx.arc(x, y - 21.8, 3, Math.PI, Math.PI * 2);
+  else ctx.arc(x - 1, y - 22, 3, Math.PI * 1.05, Math.PI * 1.7);
   ctx.fill();
-  if (!options.back) {
+  if (!options.back && human) {
     oval(ctx, x - 1.5 + dir, y - 20.3, 0.6, 0.7, palette.ink);
     oval(ctx, x + 1.5 + dir, y - 20.3, 0.6, 0.7, palette.ink);
+  } else if (!options.back) {
+    oval(ctx, x - 1.5 + dir, y - 20.3, 1.2, 1.3, palette.ink);
+    oval(ctx, x + 1.5 + dir, y - 20.3, 1.2, 1.3, palette.ink);
+    oval(ctx, x - 1.5 + dir, y - 20.4, 0.4, 0.5, palette.white);
+    oval(ctx, x + 1.5 + dir, y - 20.4, 0.4, 0.5, palette.white);
+    stroke(
+      ctx,
+      [
+        [x - 1.5, y - 18],
+        [x + 2, y - 17.5],
+      ],
+      palette.ink,
+      1.4,
+    );
+    stroke(
+      ctx,
+      [
+        [x, y - 18.4],
+        [x, y - 17.2],
+      ],
+      palette.cream,
+      0.8,
+    );
   }
   if (look.cap) {
     ctx.fillStyle = look.cap;
@@ -870,7 +917,50 @@ function person(
         look.cap,
       );
   }
+  ctx.restore();
   if (options.player) {
+    ctx.save();
+    ctx.translate(x, y - 12);
+    ctx.scale(dir, 1);
+    stroke(
+      ctx,
+      [
+        [-3, 1],
+        [4, -1],
+      ],
+      palette.wood,
+      4,
+    );
+    stroke(
+      ctx,
+      [
+        [4, -1],
+        [20, -1],
+      ],
+      palette.ink,
+      3,
+    );
+    stroke(
+      ctx,
+      [
+        [5, -2],
+        [20, -2],
+      ],
+      palette.metalShade,
+      1,
+    );
+    stroke(
+      ctx,
+      [
+        [7, 0],
+        [12, 0],
+      ],
+      palette.woodLight,
+      3,
+    );
+    oval(ctx, 3, 0, 1.5, 1.5, look.skin);
+    oval(ctx, 11, 0, 1.5, 1.5, look.skin);
+    ctx.restore();
     const hop = Math.sin((options.t ?? 0) * 5) * 1.5;
     poly(
       ctx,
@@ -884,7 +974,7 @@ function person(
   }
 }
 
-function cart(ctx: Ctx, prop: Prop, t: number) {
+function cart(ctx: Ctx, prop: Prop, t: number, vendorAlive = true) {
   const kind = prop.variant % CART_KINDS.length;
   const x = prop.x + 0.18;
   const y = prop.y + 0.3;
@@ -893,7 +983,8 @@ function cart(ctx: Ctx, prop: Prop, t: number) {
   const look = visitorLook(prop.x + prop.y);
   // The vendor stands behind the cart.
   const vendor = at(prop.x + 0.5, prop.y + 0.12);
-  person(ctx, vendor[0], vendor[1], { ...look, shirt: palette.cream, cap: palette.red });
+  if (vendorAlive)
+    person(ctx, vendor[0], vendor[1], { ...look, shirt: palette.cream, cap: palette.red });
   poly(ctx, rectPoints({ x: x + 0.15, y: y + 0.15, w, h: d }), palette.shadow);
 
   const body =
@@ -1608,16 +1699,63 @@ export function visitorLook(n: number): Look {
 }
 
 export const PLAYER_LOOK: Look = {
-  skin: palette.skins[0],
+  skin: palette.humanSkin,
   hair: palette.hairs[2],
   shirt: palette.red,
   pants: palette.pants[0],
   cap: palette.gold,
 };
 
+export function drawSplatter(ctx: Ctx, particles: readonly Splatter[]) {
+  ctx.save();
+  ctx.filter = 'none';
+  for (const [i, particle] of particles.entries()) {
+    ctx.globalAlpha = Math.min(1, (particle.lifetime - particle.age) / 0.8);
+    oval(
+      ctx,
+      particle.x,
+      particle.y,
+      particle.size * (particle.y === particle.floor ? 1.8 : 1),
+      particle.size * (particle.y === particle.floor ? 0.55 : 1),
+      i % 3 === 0 ? palette.bloodLight : palette.blood,
+    );
+  }
+  ctx.restore();
+}
+
+export function drawShot(ctx: Ctx, from: Point, to: Point, opacity: number) {
+  ctx.save();
+  ctx.filter = 'none';
+  ctx.globalAlpha = opacity;
+  stroke(
+    ctx,
+    [
+      [from.x, from.y],
+      [to.x, to.y],
+    ],
+    palette.cream,
+    1,
+  );
+  const dir = to.x < from.x ? -1 : 1;
+  poly(
+    ctx,
+    [
+      [from.x, from.y - 2],
+      [from.x + dir * 9, from.y - 6],
+      [from.x + dir * 5, from.y],
+      [from.x + dir * 10, from.y + 4],
+      [from.x, from.y + 2],
+    ],
+    palette.gold,
+  );
+  ctx.restore();
+}
+
 export function drawWalker(ctx: Ctx, walker: Walker, look: Look, player = false, t = 0) {
   const p = toScreen(walker.x, walker.y);
   const swing = walker.walking ? Math.sin(walker.stride * Math.PI * 2.2) : 0;
+  ctx.save();
+  if (player) ctx.filter = 'none';
   person(ctx, p.x, p.y, look, {
     swing,
     back: walker.facing === 'back',
@@ -1625,6 +1763,7 @@ export function drawWalker(ctx: Ctx, walker: Walker, look: Look, player = false,
     player,
     t,
   });
+  ctx.restore();
 }
 
 // ── The gate ──────────────────────────────────────────────────────────────
@@ -1734,7 +1873,7 @@ export function drawFloaters(ctx: Ctx, floaters: readonly Floater[]) {
 
 // ── Everything else ───────────────────────────────────────────────────────
 
-export function drawProp(ctx: Ctx, prop: Prop, t: number) {
+export function drawProp(ctx: Ctx, prop: Prop, t: number, vendorAlive = true) {
   switch (prop.kind) {
     case 'big-top':
       return bigTop(ctx, prop, t);
@@ -1761,7 +1900,7 @@ export function drawProp(ctx: Ctx, prop: Prop, t: number) {
     case 'wagon':
       return wagon(ctx, prop);
     case 'cart':
-      return cart(ctx, prop, t);
+      return cart(ctx, prop, t, vendorAlive);
     case 'ticket-booth':
       return ticketBooth(ctx, prop);
     case 'bench':

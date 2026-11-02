@@ -23,6 +23,7 @@ function renderMidway() {
       <p class="midway-help">
         <kbd>WASD</kbd> or <kbd>arrows</kbd> to walk, or click where you want to go.
         <kbd>E</kbd> to play.
+        Click a zombie to fire your shotgun.
       </p>
       <p class="midway-credit">
         Built with
